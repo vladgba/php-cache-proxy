@@ -11,7 +11,7 @@ Works on PHP 7.4.
 3. Edit `index.php` and enter your database credentials.
 
 # How to use
-Just open in browser page: 
+ - Just open in browser page: 
 http://[yourhost.com]/[targetsite]::[targetpath]
-For example:
+ - For example:
 http://192.168.1.1:8080/google.com::search?q=news
