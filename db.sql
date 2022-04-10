@@ -1,0 +1,4 @@
+CREATE TABLE `cachedpages` (
+  `id` int(11) NOT NULL PRIMARY KEY AUTO_INCREMENT,
+  `page` text NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
