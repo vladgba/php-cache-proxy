@@ -1,4 +1,5 @@
 <?php
+header('Access-Control-Allow-Origin: *');
 include_once 'htmlparser.php';
 
 $dbhost = "localhost";
@@ -152,19 +153,23 @@ class PHPProxy {
   }
 
   public function save($f) {
+      global $targ_site;
       $res = _save($f);
-      return file_put_contents('data/' . $res, $this->result['headers'] . $this->cachedelimiter . $this->result['content']);
+      return file_put_contents('data/' . $targ_site . '/' . $res, $this->result['headers'] . $this->cachedelimiter . $this->result['content']);
   }
 
   public function load($f) {
-      $res = file_get_contents('data/' . _load($f));
+      global $targ_site;
+      $res = file_get_contents('data/' . $targ_site . '/' . _load($f));
       $r = explode($this->cachedelimiter, $res);
       $this->result['headers'] = $r[0];
       $this->result['content'] = $r[1];
   }
 
   public function isCached($f) {
-      return file_exists('data/' . _load($f));
+      global $targ_site;
+      @mkdir('data/' . $targ_site, 0777, true);
+      return file_exists('data/' . $targ_site . '/' . _load($f));
   }
 
   public function getContent() {
@@ -219,10 +224,30 @@ $targ_url = $_SERVER['REQUEST_URI'];
 $stpos = strpos($targ_url, '::');
 if ($stpos !== false) {        
     $targ_site = substr($targ_url, 1, $stpos-1);
-		  $targ_url = '/'.substr($targ_url, $stpos+2);
+    $targ_url = '/'.substr($targ_url, $stpos+2);
 }
 
-if(empty($targ_site)) return exit("Site not defined");
+if(empty($targ_site)) {
+    if(isset($_SERVER['HTTP_REFERER']) && !empty($_SERVER['HTTP_REFERER'])){
+        $pa = strpos($_SERVER['HTTP_REFERER'], $_SERVER['HTTP_HOST']);
+        $pe = strpos($_SERVER['HTTP_REFERER'], '::');
+        if($pa === false || $pe === false){
+            return exit("Cant parse referer");
+        } else {
+            $sh = strlen($_SERVER['HTTP_HOST']) + $pa + 1;
+            $sb = $pe - $sh;
+            $pb = substr($_SERVER['HTTP_REFERER'], $sh, $sb);
+            //$pc = substr($_SERVER['HTTP_REFERER'], $pe+2);
+            $targ_site = $pb;
+            $targ_url = $_SERVER['REQUEST_URI'];
+        }
+
+    } else {
+        $targ_site = file_get_contents('lastsite.txt');
+        $targ_url = $_SERVER['REQUEST_URI'];
+        //return exit("Site not defined");
+    }
+}
 
 //if works only google services
 //$targ_site = str_replace('.','-', str_replace('-','--',$targ_site));
@@ -258,8 +283,8 @@ if (strripos($path, '.') !== false) {
             break;
 
         default:
-            $data = substr($proxy->getContent(),0,64);
-            if(strpos($data,'<')===false) {
+            $data = substr($proxy->getContent(),0,128);
+            if(strpos($data,'<')===false || strpos($data,'>')===false) {
                 $proxy->output();
                 exit();
             }
@@ -271,14 +296,8 @@ $data = $proxy->getContent();
 $psr = str_get_html($data);
 
 function repi($v) {
-  $site = $_SERVER['HTTP_HOST'];
-		$targ_url = $_SERVER['REQUEST_URI'];
-  $stpos = strpos($targ_url, '::');
-  if($stpos !== false){        
-    $targ_site = substr($targ_url,1,$stpos-1);
-		  $targ_url = '/'.substr($targ_url,$stpos+2);
-    
-  }
+    global $site,$targ_url,$targ_site; //TODO: refactor
+
 	      	if(empty($targ_site)) return exit("Site not defined");
         //$targ_site = str_replace('.','-', str_replace('-','--',$targ_site));
       		$gtr='';//$gtr = '_x_tr_sl=en&_x_tr_tl=en&_x_tr_hl=en&_x_tr_pto=wapp';
@@ -297,6 +316,12 @@ function repi($v) {
     return $v;
 }
 
+if($psr === false) {
+    $proxy->output();
+    exit();
+} else {
+    file_put_contents('lastsite.txt', $targ_site);
+}
 foreach ($psr->find('base,a,link') as $k => $v) {
     if (isset($v->href)) $v->href = repi($v->href);
     if (isset($v->integrity)) unset($v->integrity);
