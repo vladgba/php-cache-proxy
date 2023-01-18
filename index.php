@@ -59,6 +59,7 @@ $targetURL = 'https://' . $targetLink;
 $dataLink = 'data/' . $targetLink;
 
 $useragent = $_SERVER['HTTP_USER_AGENT'];
+
 $proxy = new PHPProxy(compact('useragent'));
 $proxy->proxy($targetURL);
 
@@ -115,21 +116,21 @@ if ($psr === false) {
 } else {
     file_put_contents('lastsite.txt', $targ_site);
 }
-foreach ($psr->find('base,a,link') as $k => $v) {
+
+foreach ($psr->find('base') as $k => $v) {
+    if (isset($v->href)) $v->href = repi($v->href);
+}
+
+foreach ($psr->find('a,link,script') as $k => $v) {
     if (isset($v->href)) $v->href = repi($v->href);
     if (isset($v->integrity)) unset($v->integrity);
+    if (isset($v->src)) $v->src = repi($v->src);
+    if (isset($v->innertext)) $v->innertext=repi($v->innertext);
 }
 
 foreach ($psr->find('form') as $k => $v) $v->action = repi($v->action);
 
 foreach ($psr->find('frame,iframe,img') as $k => $v) $v->src = repi($v->src);
-
-foreach ($psr->find('script') as $k => $v) {
-    if (isset($v->src)) $v->src = repi($v->src);
-    if (isset($v->integrity)) unset($v->integrity);
-    //if(isset($v->innertext)) $v->innertext=repi($v->innertext);
-    
-}
 
 $proxy->setContent($psr->root->innertext());
 $proxy->output();
